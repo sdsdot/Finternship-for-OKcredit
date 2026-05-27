@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Smart Shop AI — Egg, Sprouts & Malt</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght=500;700&family=Mulish:wght=400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* ─────────────────────────────────────────────────
+       DESIGN TOKENS — one place to change all colors
+       ───────────────────────────────────────────────── */
+    :root {
+      --bg:         #F5F2EB;   /* page background (warm cream) */
+      --surface:    #FFFDF8;   /* card/panel background */
+      --border:     #DDD9CF;   /* borders */
+      --text:       #1A1714;   /* main text */
+      --muted:      #6B6560;   /* secondary text */
+      --hint:       #A09890;   /* placeholder / hint text */
+
+      /* Product colors */
+      --egg:        #C97B2A; --egg-bg:   #FDF3E3;
+      --spr:        #4A8C3F; --spr-bg:   #EDF6EB;
+      --mlt:        #5B48C0; --mlt-bg:   #EEECFB;
+
+      /* Status colors */
+      --danger:     #C0392B; --danger-bg:#FDEDED;
+      --success:    #2E7D32; --success-bg:#EDF7EE;
+      --warn:       #B45309; --warn-bg:  #FEF3C7;
+      --info:       #1565C0; --info-bg:  #E3F2FD;
+
+      /* AI accent color (Gemini Blue Theme) */
+      --ai:         #1E88E5;   
+      --ai-bg:      #E3F2FD;
+      --ai-gradient: linear-gradient(135deg, #0091EA 0%, #1565C0 100%);
+
+      --radius:     10px;
+      --radius-lg:  16px;
+      --shadow:     0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    /* ── RESET & BASE ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: 'Mulish', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 90px; /* space for fixed bottom nav */
+    }
+    .container { max-width: 680px; margin: 0 auto; padding: 0 1rem; }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--text);
+      color: #fff;
+      padding: 1.25rem 1rem 1rem;
+      text-align: center;
+    }
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header p { font-size: 0.78rem; opacity: 0.65; margin-top: 3px; }
+
+    /* ── ALERTS (green/red/yellow banners) ── */
+    #alert-area { margin: 1rem 0 0; }
+    .alert {
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+    }
+    .alert-danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid #f5c6c6; }
+    .alert-success { background: var(--success-bg); color: var(--success); border: 1px solid #b8deba; }
+    .alert-warn    { background: var(--warn-bg);    color: var(--warn);    border: 1px solid #fcd34d; }
+    .alert-info    { background: var(--info-bg);    color: var(--info);    border: 1px solid #90caf9; }
+    .alert-ai      { background: var(--ai-bg);      color: var(--ai);      border: 1px solid #90caf9; }
+
+    /* ── STAT CARDS (top row of numbers) ── */
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin: 1rem 0; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0.85rem 1rem;
+    }
+    .card .c-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .card .c-value { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; }
+    .card .c-sub   { font-size: 0.7rem; color: var(--hint); margin-top: 2px; }
+    .c-egg { border-left: 3px solid var(--egg); }
+    .c-spr { border-left: 3px solid var(--spr); }
+    .c-mlt { border-left: 3px solid var(--mlt); }
+    .c-neu { border-left: 3px solid var(--border); }
+    .c-ai  { border-left: 3px solid var(--ai); }
+
+    /* ── PANEL (white box for sections) ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .panel h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .panel h2 .ai-tag {
+      font-family: 'Mulish', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: var(--gemini-gradient, var(--ai));
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── FORMS ── */
+    .setup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; }
+    .setup-block { display: flex; flex-direction: column; gap: 4px; }
+    .setup-block label { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sub-label { font-size: 0.7rem; color: var(--hint); margin-top: 4px; }
+    .sub-label input { width: 70px; display: inline-block; padding: 3px 7px; font-size: 0.72rem; }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.55rem 0.75rem;
+      font-size: 0.9rem;
+      font-family: 'Mulish', sans-serif;
+      background: #fff;
+      color: var(--text);
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--mlt); }
+    .form-row  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-family: 'Mulish', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn:hover { background: var(--bg); }
+    .btn-primary {
+      background: var(--text);
+      color: #fff;
+      border-color: transparent;
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-ai {
+      background: var(--ai-gradient, var(--ai));
+      color: #fff;
+      border-color: transparent;
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .btn-ai:hover { opacity: 0.85; }
+    .btn-del {
+      background: transparent;
+      border: 1px solid #f5c6c6;
+      color: var(--danger);
+      padding: 0.3rem 0.65rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-del:hover { background: var(--danger-bg); }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 420px; }
+    th { text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── BADGES (colored pill labels) ── */
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+    .badge-egg { background: var(--egg-bg); color: var(--egg); }
+    .badge-spr { background: var(--spr-bg); color: var(--spr); }
+    .badge-mlt { background: var(--mlt-bg); color: var(--mlt); }
+
+    /* ── CHART WRAPPER ── */
+    .chart-wrap { position: relative; height: 260px; margin-top: 0.5rem; }
+
+    /* ── AI INSIGHT BOX ── */
+    .ai-insight-box {
+      background: var(--ai-bg);
+      border: 1px solid rgba(30, 136, 229, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.83rem;
+      line-height: 1.6;
+      color: #0D47A1;
+    }
+    .ai-insight-box .ai-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--ai);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── ACTION CARDS (buy recommendation boxes) ── */
+    .action-cards { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+    .action-card {
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      border: 1px solid;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .action-card .ac-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .action-card .ac-body { flex: 1; }
+    .action-card .ac-title { font-weight: 700; font-size: 0.85rem; }
+    .action-card .ac-sub   { color: var(--muted); margin-top: 2px; font-size: 0.78rem; }
+    .ac-buy    { background: var(--success-bg); color: var(--success); border-color: #b8deba; }
+    .ac-reduce { background: var(--warn-bg);    color: var(--warn);    border-color: #fcd34d; }
+    .ac-hold   { background: var(--info-bg);    color: var(--info);    border-color: #90caf9; }
+
+    /* ── WASTAGE RISK METER ── */
+    .risk-row { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+    .risk-item { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; }
+    .risk-item .ri-name { width: 90px; flex-shrink: 0; font-weight: 600; }
+    .risk-bar-bg { flex: 1; background: var(--border); border-radius: 99px; height: 8px; overflow: hidden; }
+    .risk-bar    { height: 100%; border-radius: 99px; transition: width 0.5s; }
+    .risk-item .ri-pct { width: 36px; text-align: right; font-weight: 700; }
+    .rb-low  { background: var(--success); }
+    .rb-mid  { background: var(--warn); }
+    .rb-high { background: var(--danger); }
+
+    /* ── TABS (mobile bottom nav) ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0;
+      width: 100%;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 0.5rem 0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      z-index: 1000;
+    }
+    .nav-item {
+      flex: 1;
+      text-align: center;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-family: 'Mulish', sans-serif;
+      cursor: pointer;
+      padding: 0.4rem;
+      transition: color 0.2s;
+    }
+    .nav-item.active { color: var(--text); font-weight: 700; }
+    .nav-icon { display: block; font-size: 1.1rem; margin-bottom: 2px; }
+
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ── MISC HELPERS ── */
+    .empty { text-align: center; padding: 2rem 1rem; color: var(--hint); font-size: 0.82rem; }
+    .err-msg { font-size: 0.75rem; color: var(--danger); min-height: 1rem; margin-top: 4px; }
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 1rem 0 0.5rem;
+    }
+    .loading-dots::after {
+      content: '.';
+      animation: dots 1.4s steps(3, end) infinite;
+    }
+    @keyframes dots {
+      0%,20%  { content: '.'; }
+      40%     { content: '..'; }
+      60%,100%{ content: '...'; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🧠 Smart Shop AI</h1>
+    <p>Egg • Sprouts • Malt — Powered by ML + Gemini API</p>
+  </header>
+
+  <div class="container">
+
+    <div id="tab-dash" class="tab-content active">
+
+      <div id="alert-area"></div>
+
+      <div class="cards">
+        <div class="card c-egg">
+          <div class="c-label">Boiled Egg</div>
+          <div class="c-value" id="stat-egg">—</div>
+          <div class="c-sub">dozens left</div>
+        </div>
+        <div class="card c-spr">
+          <div class="c-label">Sprouts</div>
+          <div class="c-value" id="stat-spr">—</div>
+          <div class="c-sub">grams left</div>
+        </div>
+        <div class="card c-mlt">
+          <div class="c-label">Malt</div>
+          <div class="c-value" id="stat-mlt">—</div>
+          <div class="c-sub">kg left</div>
+        </div>
+        <div class="card c-neu">
+          <div class="c-label">Today's Revenue</div>
+          <div class="c-value" id="stat-rev">—</div>
+          <div class="c-sub">₹ so far today</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🚀 Gemini Daily Brief <span class="ai-tag">GEMINI API</span></h2>
+        <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+          Gemini reads your sales history and tells you exactly what to buy, reduce, or hold today.
+        </p>
+        <button class="btn btn-ai" onclick="runAIBrief()">
+          ✨ Generate Today's Brief
+        </button>
+        <div id="ai-brief-area"></div>
+      </div>
+
+      <div class="panel">
+        <h2>⚠️ Wastage Risk <span class="ai-tag">AI COMPUTED</span></h2>
+        <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.5rem;">
+          How many days of stock you're holding. High = overstocked, likely to waste.
+        </p>
+        <div class="risk-row" id="risk-area">
+          <div class="empty">Log some sales first to see wastage risk.</div>
+        </div>
+      </div>
+
+    </div><div id="tab-log" class="tab-content">
+      <div class="panel">
+        <h2>➕ Add today's sale</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="input-date" />
+          </div>
+          <div class="form-group">
+            <label>Product</label>
+            <select id="input-product" onchange="updateQtyLabel()">
+              <option value="Boiled Egg">Boiled Egg</option>
+              <option value="Sprouts">Sprouts</option>
+              <option value="Malt">Malt</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label id="qty-label">Qty sold</label>
+            <input type="number" id="input-qty" min="0" step="1" />
+          </div>
+          <div class="form-group">
+            <label id="price-label">Price (₹)</label>
+            <input type="number" id="input-price" min="0" step="1" readonly />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addSale()">Add sale</button>
+        <p class="err-msg" id="form-error"></p>
+      </div>
+
+      <div class="panel">
+        <h2>📋 Sales log</h2>
+        <div class="table-wrap" id="table-area"></div>
+      </div>
+    </div><div id="tab-predict" class="tab-content">
+
+      <div class="panel">
+        <h2>🤖 LightGBM Forecast <span class="ai-tag">ML MODEL</span></h2>
+        <p style="font-size:0.75rem;color:var(--muted); margin-bottom:1rem;">
+          Sends data to Python backend → trains Gradient Boosting model → plots 7-day forecast.
+          <br><strong>Requires:</strong> <code>uvicorn main:app --reload</code> running on port 8000.
+        </p>
+        <button class="btn btn-primary" onclick="fetchLightGBMPredictions()">▶ Run ML Model</button>
+        <div id="ml-status" style="font-size:0.8rem;font-weight:600;color:var(--mlt);margin-top:10px;text-align:center;"></div>
+        <div class="chart-wrap"><canvas id="mlChart" role="img" aria-label="7-day demand forecast chart">Forecast chart</canvas></div>
+      </div>
+
+      <div class="panel" id="ai-forecast-panel" style="display:none;">
+        <h2>💬 Gemini Explains the Forecast <span class="ai-tag">GEMINI API</span></h2>
+        <div id="ai-forecast-explanation"></div>
+      </div>
+
+      <div class="panel">
+        <h2>📅 Rush Pattern <span class="ai-tag">AI COMPUTED</span></h2>
+        <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.5rem;">
+          Which day of the week each product sells most — so you know when to stock up.
+        </p>
+        <div id="pattern-area">
+          <div class="empty">Add at least 7 days of sales to see patterns.</div>
+        </div>
+      </div>
+
+    </div><div id="tab-ai" class="tab-content">
+      <div class="panel">
+        <h2>💬 Ask Gemini About Your Sales <span class="ai-tag">GEMINI API</span></h2>
+        <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+          Type any business question. Gemini will analyze your actual sales data to answer it.
+        </p>
+        <div class="form-group" style="margin-bottom:0.5rem;">
+          <label>Your question</label>
+          <input type="text" id="ai-question"
+            placeholder="e.g. Why did Malt sales drop last week?"
+            style="font-size:0.85rem;"
+          />
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;">
+          <button class="btn" style="font-size:0.72rem;padding:4px 10px;"
+            onclick="setQuestion('Which product is most profitable?')">
+            💰 Most profitable?
+          </button>
+          <button class="btn" style="font-size:0.72rem;padding:4px 10px;"
+            onclick="setQuestion('What should I buy more of tomorrow?')">
+            🛒 Buy tomorrow?
+          </button>
+          <button class="btn" style="font-size:0.72rem;padding:4px 10px;"
+            onclick="setQuestion('Which product am I wasting the most?')">
+            ♻️ Most wastage?
+          </button>
+          <button class="btn" style="font-size:0.72rem;padding:4px 10px;"
+            onclick="setQuestion('What is my best selling day of the week?')">
+            📅 Best day?
+          </button>
+        </div>
+
+        <button class="btn btn-ai" onclick="askAI()">⚡ Ask Gemini</button>
+        <div id="ai-answer-area" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <div class="panel">
+        <h2>📊 Revenue Trend</h2>
+        <div class="chart-wrap">
+          <canvas id="revenueChart" role="img" aria-label="Daily revenue bar chart">Revenue chart</canvas>
+        </div>
+      </div>
+    </div><div id="tab-inv" class="tab-content">
+      <div class="panel">
+        <h2>⚙️ Stock Settings</h2>
+        <div class="setup-grid">
+          <div class="setup-block">
+            <label>Boiled Egg (dozens)</label>
+            <input type="number" id="stock-egg" />
+            <div class="sub-label">Alert below: <input type="number" id="thr-egg" /> doz</div>
+          </div>
+          <div class="setup-block">
+            <label>Sprouts (grams)</label>
+            <input type="number" id="stock-spr" />
+            <div class="sub-label">Alert below: <input type="number" id="thr-spr" /> g</div>
+          </div>
+          <div class="setup-block">
+            <label>Malt (kg)</label>
+            <input type="number" id="stock-mlt" />
+            <div class="sub-label">Alert below: <input type="number" id="thr-mlt" /> kg</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyStock()">Save Inventory</button>
+        <p id="stock-msg" style="font-size:0.75rem;color:var(--success);margin-top:6px;"></p>
+      </div>
+
+      <div class="panel">
+        <h2>🧪 Demo Data</h2>
+        <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+          Load 14 days of sample sales to test AI features instantly.
+        </p>
+        <button class="btn btn-primary" onclick="loadDemoData()">Load Demo Sales</button>
+        <button class="btn" onclick="clearAllData()" style="width:100%;margin-top:0.4rem;color:var(--danger); font-weight: 600;">
+          🗑 Clear All Data
+        </button>
+      </div>
+    </div></div><nav class="bottom-nav">
+    <button class="nav-item active" onclick="navTab('dash', this)">
+      <span class="nav-icon">🏠</span>Dash
+    </button>
+    <button class="nav-item" onclick="navTab('log', this)">
+      <span class="nav-icon">📋</span>Log
+    </button>
+    <button class="nav-item" onclick="navTab('predict', this)">
+      <span class="nav-icon">📈</span>Forecast
+    </button>
+    <button class="nav-item" onclick="navTab('ai', this)">
+      <span class="nav-icon">🧠</span>Ask AI
+    </button>
+    <button class="nav-item" onclick="navTab('inv', this)">
+      <span class="nav-icon">📦</span>Stock
+    </button>
+  </nav>
+
+  <script>
+    const PRODUCTS = {
+      'Boiled Egg': { unit: 'doz', step: 0.0833, decimals: 2, defaultPrice: 120, color: '#C97B2A', badgeClass: 'badge-egg' }, // 1 egg = 1/12 doz (~0.0833), ₹10 per egg = ₹120 per doz
+      'Sprouts':    { unit: 'g',   step: 100,  decimals: 0, defaultPrice: 0.1, color: '#4A8C3F', badgeClass: 'badge-spr' },   // Standardizing 1 portion as 100g at ₹10 total (₹0.1 per gram)
+      'Malt':       { unit: 'kg',  step: 0.05, decimals: 2, defaultPrice: 700, color: '#5B48C0', badgeClass: 'badge-mlt' }   // Standardizing 1 glass as 50g powder at ₹35 total (₹700 per kg)
+    };
+
+    let sales  = [];
+    let stocks = { 'Boiled Egg': 50, 'Sprouts': 2000, 'Malt': 100 };
+    let thresh = { 'Boiled Egg': 10, 'Sprouts': 500,  'Malt': 20  };
+
+    let mlChartInstance = null;
+    let revenueChartInstance = null;
+
+    try { sales  = JSON.parse(localStorage.getItem('tracker_sales')  || '[]'); } catch(e) {}
+    try { const s = JSON.parse(localStorage.getItem('tracker_stocks')); if(s) stocks = s; } catch(e) {}
+    try { const t = JSON.parse(localStorage.getItem('tracker_thresh')); if(t) thresh = t; } catch(e) {}
+
+    function save() {
+      localStorage.setItem('tracker_sales',  JSON.stringify(sales));
+      localStorage.setItem('tracker_stocks', JSON.stringify(stocks));
+      localStorage.setItem('tracker_thresh', JSON.stringify(thresh));
+    }
+
+    function navTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      btn.classList.add('active');
+      if (tabId === 'ai') drawRevenueChart();
+      if (tabId === 'predict') drawRushPatterns();
+    }
+
+    function updateQtyLabel() {
+      const product = document.getElementById('input-product').value;
+      const cfg = PRODUCTS[product];
+      document.getElementById('qty-label').textContent   = `Qty sold (${cfg.unit})`;
+      document.getElementById('price-label').textContent = `Fixed Price per ${cfg.unit} (₹)`;
+      document.getElementById('input-qty').step = cfg.step;
+      document.getElementById('input-price').value = cfg.defaultPrice;
+    }
+
+    function setTodaysDate() {
+      document.getElementById('input-date').value = new Date().toISOString().slice(0, 10);
+    }
+
+    function setQuestion(q) {
+      document.getElementById('ai-question').value = q;
+    }
+
+    function addSale() {
+      const date    = document.getElementById('input-date').value;
+      const product = document.getElementById('input-product').value;
+      const qty     = parseFloat(document.getElementById('input-qty').value);
+      const price   = parseFloat(document.getElementById('input-price').value);
+      const errEl   = document.getElementById('form-error');
+
+      if (!date)                  { errEl.textContent = 'Please select a date.'; return; }
+      if (isNaN(qty) || qty <= 0) { errEl.textContent = 'Enter a valid quantity.'; return; }
+
+      errEl.textContent = '';
+      sales.push({ date, product, qty, price, revenue: qty * price });
+
+      const dec = PRODUCTS[product].decimals + 2;
+      stocks[product] = parseFloat((stocks[product] - qty).toFixed(dec));
+
+      save();
+      document.getElementById('input-qty').value   = '';
+      refreshUI();
+    }
+
+    function deleteSale(index) {
+      const s = sales[index];
+      stocks[s.product] += s.qty;
+      sales.splice(index, 1);
+      save();
+      refreshUI();
+    }
+
+    function applyStock() {
+      stocks['Boiled Egg'] = parseFloat(document.getElementById('stock-egg').value) || 0;
+      stocks['Sprouts']    = parseFloat(document.getElementById('stock-spr').value) || 0;
+      stocks['Malt']       = parseFloat(document.getElementById('stock-mlt').value) || 0;
+      thresh['Boiled Egg'] = parseFloat(document.getElementById('thr-egg').value)   || 10;
+      thresh['Sprouts']    = parseFloat(document.getElementById('thr-spr').value)   || 500;
+      thresh['Malt']       = parseFloat(document.getElementById('thr-mlt').value)   || 20;
+      save();
+      const msg = document.getElementById('stock-msg');
+      msg.textContent = '✓ Stock settings saved!';
+      setTimeout(() => { msg.textContent = ''; }, 2000);
+      refreshUI();
+    }
+
+    function avgDailySales(product, lastNDays = 7) {
+      if (sales.length === 0) return 0;
+      const productSales = sales.filter(s => s.product === product);
+      if (productSales.length === 0) return 0;
+      const totalQty  = productSales.reduce((sum, s) => sum + s.qty, 0);
+      const uniqueDays = [...new Set(productSales.map(s => s.date))].length;
+      return uniqueDays > 0 ? totalQty / uniqueDays : 0;
+    }
+
+    function wastageRisk(product) {
+      const avg = avgDailySales(product);
+      if (avg === 0) return 0;
+      const daysLeft = stocks[product] / avg;
+      if (daysLeft <= 1)  return 10;
+      if (daysLeft <= 3)  return 25;
+      if (daysLeft <= 5)  return 50;
+      if (daysLeft <= 7)  return 70;
+      return Math.min(95, Math.round((daysLeft / 14) * 100));
+    }
+
+    function todayRevenue() {
+      const today = new Date().toISOString().slice(0, 10);
+      return sales
+        .filter(s => s.date === today)
+        .reduce((sum, s) => sum + s.revenue, 0);
+    }
+
+    function refreshUI() {
+      document.getElementById('stat-egg').textContent = stocks['Boiled Egg'].toFixed(2);
+      document.getElementById('stat-spr').textContent = stocks['Sprouts'].toFixed(0);
+      document.getElementById('stat-mlt').textContent = stocks['Malt'].toFixed(2);
+      document.getElementById('stat-rev').textContent = '₹' + todayRevenue().toFixed(0);
+
+      document.getElementById('stock-egg').value = stocks['Boiled Egg'];
+      document.getElementById('stock-spr').value = stocks['Sprouts'];
+      document.getElementById('stock-mlt').value = stocks['Malt'];
+      document.getElementById('thr-egg').value   = thresh['Boiled Egg'];
+      document.getElementById('thr-spr').value   = thresh['Sprouts'];
+      document.getElementById('thr-mlt').value   = thresh['Malt'];
+
+      const alertArea = document.getElementById('alert-area');
+      const lowStock  = Object.keys(PRODUCTS).filter(p => stocks[p] <= thresh[p]);
+      if (lowStock.length > 0) {
+        const msgs = lowStock.map(p => `<strong>${p}</strong> (${stocks[p].toFixed(1)})`).join(', ');
+        alertArea.innerHTML = `<div class="alert alert-danger">⚠️ Low stock: ${msgs}</div>`;
+      } else {
+        alertArea.innerHTML = `<div class="alert alert-success">✅ All stock levels are healthy.</div>`;
+      }
+
+      const tableArea = document.getElementById('table-area');
+      if (sales.length === 0) {
+        tableArea.innerHTML = '<div class="empty">No sales recorded yet. Go to the Log tab to add sales.</div>';
+      } else {
+        const rows = [...sales].reverse().map((s, ri) => {
+          const rId = sales.length - 1 - ri;
+          const cfg = PRODUCTS[s.product];
+          return `<tr>
+            <td>${s.date.slice(5)}</td>
+            <td><span class="badge ${cfg.badgeClass}">${s.product}</span></td>
+            <td>${s.qty.toFixed(cfg.decimals)} ${cfg.unit}</td>
+            <td>₹${s.price}</td>
+            <td>₹${s.revenue.toFixed(0)}</td>
+            <td><button class="btn-del" onclick="deleteSale(${rId})">✕</button></td>
+          </tr>`;
+        }).join('');
+        tableArea.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>Item</th><th>Qty</th><th>Price</th><th>Revenue</th><th></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+      drawWastageRisk();
+    }
+
+    function drawWastageRisk() {
+      const area = document.getElementById('risk-area');
+      if (sales.length < 3) {
+        area.innerHTML = '<div class="empty">Log at least 3 sales to see wastage risk.</div>';
+        return;
+      }
+
+      let html = '';
+      for (const product of Object.keys(PRODUCTS)) {
+        const score = wastageRisk(product);
+        const avg   = avgDailySales(product);
+        const days  = avg > 0 ? (stocks[product] / avg).toFixed(1) : '∞';
+
+        let barClass = 'rb-low';
+        if (score > 60) barClass = 'rb-high';
+        else if (score > 35) barClass = 'rb-mid';
+
+        html += `
+          <div class="risk-item">
+            <div class="ri-name">${product.split(' ')[0]}</div>
+            <div class="risk-bar-bg">
+              <div class="risk-bar ${barClass}" style="width:${score}%"></div>
+            </div>
+            <div class="ri-pct" style="font-size:0.75rem;color:var(--muted);">${days}d</div>
+          </div>`;
+      }
+      area.innerHTML = html;
+    }
+
+    function drawRushPatterns() {
+      const area = document.getElementById('pattern-area');
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+      const uniqueDays = [...new Set(sales.map(s => s.date))];
+      if (uniqueDays.length < 7) {
+        area.innerHTML = `<div class="empty">Need at least 7 days of sales data. You have ${uniqueDays.length} days.</div>`;
+        return;
+      }
+
+      let html = '';
+      for (const product of Object.keys(PRODUCTS)) {
+        const cfg = PRODUCTS[product];
+        const pSales = sales.filter(s => s.product === product);
+        if (pSales.length === 0) continue;
+
+        const byDay = Array(7).fill(0);
+        pSales.forEach(s => {
+          const dow = new Date(s.date + 'T00:00:00').getDay();
+          byDay[dow] += s.qty;
+        });
+
+        const maxQty = Math.max(...byDay);
+        const bestDay = days[byDay.indexOf(maxQty)];
+        const worstDay = days[byDay.indexOf(Math.min(...byDay))];
+
+        html += `
+          <div style="margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:0.8rem;font-weight:700;">${product}</span>
+              <span style="font-size:0.72rem;color:var(--success);font-weight:600;">Peak: ${bestDay}</span>
+            </div>
+            <div style="display:flex;gap:3px;align-items:flex-end;height:40px;">
+              ${byDay.map((qty, i) => {
+                const pct = maxQty > 0 ? (qty / maxQty) * 100 : 0;
+                const isMax = i === byDay.indexOf(maxQty);
+                return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+                  <div style="width:100%;background:${isMax ? cfg.color : cfg.color+'50'};
+                    border-radius:3px 3px 0 0;height:${Math.max(pct * 0.4, 3)}px;"></div>
+                  <span style="font-size:0.6rem;color:var(--muted);">${days[i].slice(0,1)}</span>
+                </div>`;
+              }).join('')}
+            </div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">
+              📉 Slowest: ${worstDay} — consider buying less on ${worstDay}s
+            </div>
+          </div>`;
+      }
+      area.innerHTML = html;
+    }
+
+    function drawRevenueChart() {
+      if (sales.length === 0) return;
+
+      const revByDate = {};
+      sales.forEach(s => {
+        revByDate[s.date] = (revByDate[s.date] || 0) + s.revenue;
+      });
+
+      const labels = Object.keys(revByDate).sort().map(d => d.slice(5));
+      const data   = Object.keys(revByDate).sort().map(d => revByDate[d]);
+
+      const canvas = document.getElementById('revenueChart');
+
+      if (revenueChartInstance) revenueChartInstance.destroy();
+
+      revenueChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Revenue (₹)',
+            data,
+            backgroundColor: 'rgba(30, 136, 229, 0.45)',
+            borderColor: '#1E88E5',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v => '₹' + v } }
+          }
+        }
+      });
+    }
+
+    async function fetchLightGBMPredictions() {
+      const statusEl = document.getElementById('ml-status');
+
+      if (sales.length < 3) {
+        statusEl.innerHTML = "❌ Need at least 3 sales entries to train the ML model.";
+        return;
+      }
+
+      statusEl.innerHTML = `<span class="loading-dots">⏳ Training LightGBM on backend</span>`;
+
+      try {
+        const response = await fetch('http://localhost:8000/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sales_data: sales })
+        });
+
+        if (!response.ok) throw new Error("Server rejected request");
+
+        const mlData = await response.json();
+        statusEl.innerHTML = "✅ Model trained. Plotting 7-day forecast...";
+
+        renderMLChart(mlData.forecasts);
+
+        document.getElementById('ai-forecast-panel').style.display = 'block';
+        explainForecastWithAI(mlData.forecasts);
+        drawRushPatterns();
+
+      } catch (error) {
+        console.error(error);
+        statusEl.innerHTML = "❌ Cannot reach backend. Make sure <code>uvicorn main:app --reload</code> is running on port 8000.";
+      }
+    }
+
+    function renderMLChart(forecasts) {
+      const canvas = document.getElementById('mlChart');
+      if (mlChartInstance) mlChartInstance.destroy();
+
+      const allDates = [...new Set(sales.map(s => s.date))].sort();
+
+      const lastDate = new Date(allDates[allDates.length - 1]);
+      const futureLabels = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i + 1);
+        return d.toISOString().slice(5, 10);
+      });
+
+      const allLabels = [...allDates.map(d => d.slice(5)), ...futureLabels];
+      const datasets  = [];
+
+      Object.keys(PRODUCTS).forEach(product => {
+        const cfg = PRODUCTS[product];
+        const pSales = sales.filter(s => s.product === product);
+        if (pSales.length === 0) return;
+
+        const dailyMap = {};
+        pSales.forEach(s => { dailyMap[s.date] = (dailyMap[s.date] || 0) + s.qty; });
+        const actualYs = allDates.map(d => dailyMap[d] || 0);
+
+        datasets.push({
+          label: `${product} Actual`,
+          data: actualYs,
+          borderColor: cfg.color,
+          backgroundColor: cfg.color + '20',
+          tension: 0.3,
+          pointRadius: 3
+        });
+
+        if (forecasts[product]) {
+          const lastActual = actualYs[actualYs.length - 1];
+          const paddedForecast = [
+            ...Array(allDates.length - 1).fill(null),
+            lastActual,
+            ...forecasts[product]
+          ];
+          datasets.push({
+            label: `${product} Forecast`,
+            data: paddedForecast,
+            borderColor: cfg.color,
+            borderDash: [6, 4],
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 1.5
+          });
+        }
+      });
+
+      mlChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: { labels: allLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+          },
+          scales: {
+            x: { ticks: { maxRotation: 45, font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    /* ── SECURE LOCAL ENDPOINT PROXY ROUTER FOR GEMINI API ── */
+    async function callGeminiProxy(systemPrompt, userMessage) {
+      const response = await fetch('http://localhost:8000/gemini-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: systemPrompt,
+          prompt: userMessage
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Local Gemini proxy connection failure');
+      }
+
+      const data = await response.json();
+      return data.insight || '';
+    }
+
+    function buildSalesSummary() {
+      if (sales.length === 0) return 'No sales data available.';
+
+      const summary = {};
+      sales.forEach(s => {
+        if (!summary[s.product]) {
+          summary[s.product] = { totalQty: 0, totalRevenue: 0, count: 0 };
+        }
+        summary[s.product].totalQty     += s.qty;
+        summary[s.product].totalRevenue += s.revenue;
+        summary[s.product].count++;
+      });
+
+      const lines = Object.entries(summary).map(([p, v]) => {
+        const avg = avgDailySales(p);
+        const risk = wastageRisk(p);
+        return `${p}: sold ${v.totalQty.toFixed(2)} units (${v.count} transactions), revenue ₹${v.totalRevenue.toFixed(0)}, avg daily sale ${avg.toFixed(2)} units/day, current stock ${stocks[p]}, wastage risk score ${risk}/100`;
+      });
+
+      const uniqueDays = [...new Set(sales.map(s => s.date))].length;
+      return `Sales data over ${uniqueDays} days:\n` + lines.join('\n');
+    }
+
+    async function runAIBrief() {
+      const area = document.getElementById('ai-brief-area');
+
+      if (sales.length < 3) {
+        area.innerHTML = `<div class="alert alert-warn" style="margin-top:0.75rem;">
+          ⚠️ Add at least 3 sales entries first, then Gemini can give you meaningful advice.
+        </div>`;
+        return;
+      }
+
+      area.innerHTML = `<div class="alert alert-ai" style="margin-top:0.75rem;">
+        <span class="loading-dots">⚡ Gemini is analyzing your sales data</span>
+      </div>`;
+
+      const systemPrompt = `You are a practical business advisor for a small Indian street food merchant 
+selling Boiled Eggs, Sprouts, and Malt. You analyze sales data and give SHORT, ACTIONABLE advice.
+Always respond in this exact JSON format:
+{
+  "brief": "One plain-English paragraph about the business situation today.",
+  "actions": [
+    { "product": "Boiled Egg", "type": "buy|reduce|hold", "message": "Short specific action e.g. Buy 10 more dozens" },
+    { "product": "Sprouts", "type": "buy|reduce|hold", "message": "..." },
+    { "product": "Malt", "type": "buy|reduce|hold", "message": "..." }
+  ]
+}
+Keep messages under 12 words. Be direct like a smart business partner.`;
+
+      const userMessage = `Here is my sales summary:\n${buildSalesSummary()}\n\nGive me today's brief and action plan.`;
+
+      try {
+        const text = await callGeminiProxy(systemPrompt, userMessage);
+        const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+        const typeMap = {
+          buy:    { cls: 'ac-buy',    icon: '🛒', prefix: 'BUY' },
+          reduce: { cls: 'ac-reduce', icon: '⬇️', prefix: 'REDUCE' },
+          hold:   { cls: 'ac-hold',   icon: '⏸️', prefix: 'HOLD' }
+        };
+
+        const actionCards = parsed.actions.map(a => {
+          const t = typeMap[a.type] || typeMap['hold'];
+          return `<div class="action-card ${t.cls}">
+            <div class="ac-icon">${t.icon}</div>
+            <div class="ac-body">
+              <div class="ac-title">${t.prefix} — ${a.product}</div>
+              <div class="ac-sub">${a.message}</div>
+            </div>
+          </div>`;
+        }).join('');
+
+        area.innerHTML = `
+          <div class="ai-insight-box" style="margin-top:0.75rem;">
+            <div class="ai-label">✨ GEMINI'S ANALYSIS</div>
+            ${parsed.brief}
+          </div>
+          <div class="action-cards">${actionCards}</div>`;
+
+      } catch (err) {
+        console.error(err);
+        area.innerHTML = `<div class="alert alert-danger" style="margin-top:0.75rem;">
+          ❌ Gemini proxy server communication error. Ensure backend is up on port 8000.
+        </div>`;
+      }
+    }
+
+    async function explainForecastWithAI(forecasts) {
+      const area = document.getElementById('ai-forecast-explanation');
+      area.innerHTML = `<div class="alert alert-ai"><span class="loading-dots">⚡ Gemini is reading the forecast</span></div>`;
+
+      const forecastText = Object.entries(forecasts).map(([product, days]) =>
+        `${product}: next 7 days predicted sales = [${days.join(', ')}] units`
+      ).join('\n');
+
+      const systemPrompt = `You are an AI assistant for a small Indian food merchant. 
+Explain ML forecasts in simple, practical terms. No jargon. Max 4 sentences.
+End with one specific stock preparation recommendation.`;
+
+      const userMessage = `My ML model predicted these sales for next 7 days:\n${forecastText}\n\nExplain what this means for my business and what I should prepare.`;
+
+      try {
+        const explanation = await callGeminiProxy(systemPrompt, userMessage);
+        area.innerHTML = `
+          <div class="ai-insight-box">
+            <div class="ai-label">✨ GEMINI EXPLAINS</div>
+            ${explanation.replace(/\n/g, '<br>')}
+          </div>`;
+      } catch(err) {
+        area.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not get AI explanation: Ensure your proxy server endpoint is running.</div>`;
+      }
+    }
+
+    async function askAI() {
+      const question = document.getElementById('ai-question').value.trim();
+      const area     = document.getElementById('ai-answer-area');
+
+      if (!question) {
+        area.innerHTML = `<div class="alert alert-warn">Please type a question first.</div>`;
+        return;
+      }
+
+      if (sales.length === 0) {
+        area.innerHTML = `<div class="alert alert-warn">No sales data yet. Add some sales first.</div>`;
+        return;
+      }
+
+      area.innerHTML = `<div class="alert alert-ai"><span class="loading-dots">⚡ Gemini is processing your query</span></div>`;
+
+      const systemPrompt = `You are a smart data analyst for a small Indian street food merchant selling 
+Boiled Eggs, Sprouts, and Malt. Answer questions based ONLY on the sales data provided.
+Be concise (3-5 sentences). Give specific numbers where possible. 
+End with one practical recommendation they can act on today.`;
+
+      const userMessage = `Here is all my sales data:\n${buildSalesSummary()}\n\nDetailed records: ${JSON.stringify(sales.slice(-30))}\n\nMy question: ${question}`;
+
+      try {
+        const answer = await callGeminiProxy(systemPrompt, userMessage);
+        area.innerHTML = `
+          <div class="ai-insight-box">
+            <div class="ai-label">✨ GEMINI ANSWERS</div>
+            ${answer.replace(/\n/g, '<br>')}
+          </div>`;
+      } catch(err) {
+        area.innerHTML = `<div class="alert alert-danger">❌ Error processing request. Check your backend status on port 8000.</div>`;
+      }
+    }
+
+    function loadDemoData() {
+      const today = new Date();
+      const demoSales = [];
+
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().slice(0, 10);
+
+        const dow = d.getDay();
+        const multiplier = (dow === 0 || dow === 6) ? 1.4 : 1.0;
+
+        // Structured dummy data logic matches new price settings
+        const eggQty = parseFloat(((3 + Math.random() * 4) * multiplier * 0.0833).toFixed(4));
+        demoSales.push({ date: dateStr, product: 'Boiled Egg', qty: eggQty, price: 120, revenue: eggQty * 120 });
+
+        const sprQty = Math.round((200 + Math.random() * 400) * multiplier / 100) * 100;
+        demoSales.push({ date: dateStr, product: 'Sprouts', qty: sprQty, price: 0.1, revenue: sprQty * 0.1 });
+
+        const mltQty = parseFloat(((2 + Math.random() * 3) * multiplier * 0.05).toFixed(3));
+        demoSales.push({ date: dateStr, product: 'Malt', qty: mltQty, price: 700, revenue: mltQty * 700 });
+      }
+
+      sales = demoSales;
+      stocks = { 'Boiled Egg': 45, 'Sprouts': 1800, 'Malt': 80 };
+      save();
+      refreshUI();
+
+      alert('✅ 14 days of demo data loaded with new standardized prices! Try out Dashboard or Forecast tabs.');
+    }
+
+    function clearAllData() {
+      if (!confirm('Clear all sales data? This cannot be undone.')) return;
+      sales  = [];
+      stocks = { 'Boiled Egg': 50, 'Sprouts': 2000, 'Malt': 100 };
+      thresh = { 'Boiled Egg': 10, 'Sprouts': 500,  'Malt': 20  };
+      save();
+      refreshUI();
+    }
+
+    setTodaysDate();
+    updateQtyLabel();
+    refreshUI();
+  </script>
+</body>
+</html>
