@@ -534,11 +534,22 @@
     </button>
   </nav>
 
-  <script>
+  <script type="module">
+    // Import the official Google Gen AI SDK directly inside the browser
+    import { GoogleGenAI } from "https://esm.run/@google/genai";
+
+    // Add your API key here
+    const GEMINI_API_KEY = "AIzaSyBAYhJNRPagi5cqK1342_GKOp6bQfuIja4";
+
+    // Initialize the Gemini client configuration
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    // Using gemini-2.5-flash as the optimal multimodal engineering balancing speed & accuracy
+    const GEMINI_MODEL = "gemini-2.5-flash"; 
+
     const PRODUCTS = {
-      'Boiled Egg': { unit: 'doz', step: 0.0833, decimals: 2, defaultPrice: 120, color: '#C97B2A', badgeClass: 'badge-egg' }, // 1 egg = 1/12 doz (~0.0833), ₹10 per egg = ₹120 per doz
-      'Sprouts':    { unit: 'g',   step: 100,  decimals: 0, defaultPrice: 0.1, color: '#4A8C3F', badgeClass: 'badge-spr' },   // Standardizing 1 portion as 100g at ₹10 total (₹0.1 per gram)
-      'Malt':       { unit: 'kg',  step: 0.05, decimals: 2, defaultPrice: 700, color: '#5B48C0', badgeClass: 'badge-mlt' }   // Standardizing 1 glass as 50g powder at ₹35 total (₹700 per kg)
+      'Boiled Egg': { unit: 'doz', step: 0.0833, decimals: 2, defaultPrice: 120, color: '#C97B2A', badgeClass: 'badge-egg' }, 
+      'Sprouts':    { unit: 'g',   step: 100,  decimals: 0, defaultPrice: 0.1, color: '#4A8C3F', badgeClass: 'badge-spr' },   
+      'Malt':       { unit: 'kg',  step: 0.05, decimals: 2, defaultPrice: 700, color: '#5B48C0', badgeClass: 'badge-mlt' }   
     };
 
     let sales  = [];
@@ -552,13 +563,13 @@
     try { const s = JSON.parse(localStorage.getItem('tracker_stocks')); if(s) stocks = s; } catch(e) {}
     try { const t = JSON.parse(localStorage.getItem('tracker_thresh')); if(t) thresh = t; } catch(e) {}
 
-    function save() {
+    window.save = function() {
       localStorage.setItem('tracker_sales',  JSON.stringify(sales));
       localStorage.setItem('tracker_stocks', JSON.stringify(stocks));
       localStorage.setItem('tracker_thresh', JSON.stringify(thresh));
     }
 
-    function navTab(tabId, btn) {
+    window.navTab = function(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
       document.getElementById('tab-' + tabId).classList.add('active');
@@ -567,7 +578,7 @@
       if (tabId === 'predict') drawRushPatterns();
     }
 
-    function updateQtyLabel() {
+    window.updateQtyLabel = function() {
       const product = document.getElementById('input-product').value;
       const cfg = PRODUCTS[product];
       document.getElementById('qty-label').textContent   = `Qty sold (${cfg.unit})`;
@@ -580,16 +591,16 @@
       document.getElementById('input-date').value = new Date().toISOString().slice(0, 10);
     }
 
-    function setQuestion(q) {
+    window.setQuestion = function(q) {
       document.getElementById('ai-question').value = q;
     }
 
-    function addSale() {
-      const date    = document.getElementById('input-date').value;
+    window.addSale = function() {
+      const date = document.getElementById('input-date').value;
       const product = document.getElementById('input-product').value;
-      const qty     = parseFloat(document.getElementById('input-qty').value);
-      const price   = parseFloat(document.getElementById('input-price').value);
-      const errEl   = document.getElementById('form-error');
+      const qty = parseFloat(document.getElementById('input-qty').value);
+      const price = parseFloat(document.getElementById('input-price').value);
+      const errEl = document.getElementById('form-error');
 
       if (!date)                  { errEl.textContent = 'Please select a date.'; return; }
       if (isNaN(qty) || qty <= 0) { errEl.textContent = 'Enter a valid quantity.'; return; }
@@ -600,27 +611,27 @@
       const dec = PRODUCTS[product].decimals + 2;
       stocks[product] = parseFloat((stocks[product] - qty).toFixed(dec));
 
-      save();
+      window.save();
       document.getElementById('input-qty').value   = '';
       refreshUI();
     }
 
-    function deleteSale(index) {
+    window.deleteSale = function(index) {
       const s = sales[index];
       stocks[s.product] += s.qty;
       sales.splice(index, 1);
-      save();
+      window.save();
       refreshUI();
     }
 
-    function applyStock() {
+    window.applyStock = function() {
       stocks['Boiled Egg'] = parseFloat(document.getElementById('stock-egg').value) || 0;
       stocks['Sprouts']    = parseFloat(document.getElementById('stock-spr').value) || 0;
       stocks['Malt']       = parseFloat(document.getElementById('stock-mlt').value) || 0;
       thresh['Boiled Egg'] = parseFloat(document.getElementById('thr-egg').value)   || 10;
       thresh['Sprouts']    = parseFloat(document.getElementById('thr-spr').value)   || 500;
       thresh['Malt']       = parseFloat(document.getElementById('thr-mlt').value)   || 20;
-      save();
+      window.save();
       const msg = document.getElementById('stock-msg');
       msg.textContent = '✓ Stock settings saved!';
       setTimeout(() => { msg.textContent = ''; }, 2000);
@@ -824,130 +835,6 @@
       });
     }
 
-    async function fetchLightGBMPredictions() {
-      const statusEl = document.getElementById('ml-status');
-
-      if (sales.length < 3) {
-        statusEl.innerHTML = "❌ Need at least 3 sales entries to train the ML model.";
-        return;
-      }
-
-      statusEl.innerHTML = `<span class="loading-dots">⏳ Training LightGBM on backend</span>`;
-
-      try {
-        const response = await fetch('http://localhost:8000/predict', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sales_data: sales })
-        });
-
-        if (!response.ok) throw new Error("Server rejected request");
-
-        const mlData = await response.json();
-        statusEl.innerHTML = "✅ Model trained. Plotting 7-day forecast...";
-
-        renderMLChart(mlData.forecasts);
-
-        document.getElementById('ai-forecast-panel').style.display = 'block';
-        explainForecastWithAI(mlData.forecasts);
-        drawRushPatterns();
-
-      } catch (error) {
-        console.error(error);
-        statusEl.innerHTML = "❌ Cannot reach backend. Make sure <code>uvicorn main:app --reload</code> is running on port 8000.";
-      }
-    }
-
-    function renderMLChart(forecasts) {
-      const canvas = document.getElementById('mlChart');
-      if (mlChartInstance) mlChartInstance.destroy();
-
-      const allDates = [...new Set(sales.map(s => s.date))].sort();
-
-      const lastDate = new Date(allDates[allDates.length - 1]);
-      const futureLabels = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(lastDate);
-        d.setDate(d.getDate() + i + 1);
-        return d.toISOString().slice(5, 10);
-      });
-
-      const allLabels = [...allDates.map(d => d.slice(5)), ...futureLabels];
-      const datasets  = [];
-
-      Object.keys(PRODUCTS).forEach(product => {
-        const cfg = PRODUCTS[product];
-        const pSales = sales.filter(s => s.product === product);
-        if (pSales.length === 0) return;
-
-        const dailyMap = {};
-        pSales.forEach(s => { dailyMap[s.date] = (dailyMap[s.date] || 0) + s.qty; });
-        const actualYs = allDates.map(d => dailyMap[d] || 0);
-
-        datasets.push({
-          label: `${product} Actual`,
-          data: actualYs,
-          borderColor: cfg.color,
-          backgroundColor: cfg.color + '20',
-          tension: 0.3,
-          pointRadius: 3
-        });
-
-        if (forecasts[product]) {
-          const lastActual = actualYs[actualYs.length - 1];
-          const paddedForecast = [
-            ...Array(allDates.length - 1).fill(null),
-            lastActual,
-            ...forecasts[product]
-          ];
-          datasets.push({
-            label: `${product} Forecast`,
-            data: paddedForecast,
-            borderColor: cfg.color,
-            borderDash: [6, 4],
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            pointRadius: 2,
-            borderWidth: 1.5
-          });
-        }
-      });
-
-      mlChartInstance = new Chart(canvas, {
-        type: 'line',
-        data: { labels: allLabels, datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
-          },
-          scales: {
-            x: { ticks: { maxRotation: 45, font: { size: 10 } } }
-          }
-        }
-      });
-    }
-
-    /* ── SECURE LOCAL ENDPOINT PROXY ROUTER FOR GEMINI API ── */
-    async function callGeminiProxy(systemPrompt, userMessage) {
-      const response = await fetch('http://localhost:8000/gemini-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: systemPrompt,
-          prompt: userMessage
-        })
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || 'Local Gemini proxy connection failure');
-      }
-
-      const data = await response.json();
-      return data.insight || '';
-    }
-
     function buildSalesSummary() {
       if (sales.length === 0) return 'No sales data available.';
 
@@ -971,7 +858,31 @@
       return `Sales data over ${uniqueDays} days:\n` + lines.join('\n');
     }
 
-    async function runAIBrief() {
+    // ── NATIVE API INTELLIGENCE ROUTER FOR GEMINI (REPLACING PYTHON ENDPOINT) ──
+    async function directGeminiInference(systemInstruction, userContent, enforcedJSON = false) {
+      if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("YOUR_ACTUAL_API_KEY")) {
+        throw new Error("Missing API Key entry inside the HTML initialization block.");
+      }
+
+      const config = {
+        model: GEMINI_MODEL,
+        contents: userContent,
+        config: {
+          systemInstruction: systemInstruction,
+          temperature: 0.2
+        }
+      };
+
+      if (enforcedJSON) {
+        config.config.responseMimeType = "application/json";
+      }
+
+      // Execute request directly via SDK
+      const response = await ai.models.generateContent(config);
+      return response.text;
+    }
+
+    window.runAIBrief = async function() {
       const area = document.getElementById('ai-brief-area');
 
       if (sales.length < 3) {
@@ -987,7 +898,7 @@
 
       const systemPrompt = `You are a practical business advisor for a small Indian street food merchant 
 selling Boiled Eggs, Sprouts, and Malt. You analyze sales data and give SHORT, ACTIONABLE advice.
-Always respond in this exact JSON format:
+Always respond in this exact JSON structure (Do not add markdown formatting wrappers):
 {
   "brief": "One plain-English paragraph about the business situation today.",
   "actions": [
@@ -1001,8 +912,8 @@ Keep messages under 12 words. Be direct like a smart business partner.`;
       const userMessage = `Here is my sales summary:\n${buildSalesSummary()}\n\nGive me today's brief and action plan.`;
 
       try {
-        const text = await callGeminiProxy(systemPrompt, userMessage);
-        const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+        const text = await directGeminiInference(systemPrompt, userMessage, true);
+        const parsed = JSON.parse(text.trim());
 
         const typeMap = {
           buy:    { cls: 'ac-buy',    icon: '🛒', prefix: 'BUY' },
@@ -1031,38 +942,12 @@ Keep messages under 12 words. Be direct like a smart business partner.`;
       } catch (err) {
         console.error(err);
         area.innerHTML = `<div class="alert alert-danger" style="margin-top:0.75rem;">
-          ❌ Gemini proxy server communication error. Ensure backend is up on port 8000.
+          ❌ Gemini Native Engine Error: ${err.message}
         </div>`;
       }
     }
 
-    async function explainForecastWithAI(forecasts) {
-      const area = document.getElementById('ai-forecast-explanation');
-      area.innerHTML = `<div class="alert alert-ai"><span class="loading-dots">⚡ Gemini is reading the forecast</span></div>`;
-
-      const forecastText = Object.entries(forecasts).map(([product, days]) =>
-        `${product}: next 7 days predicted sales = [${days.join(', ')}] units`
-      ).join('\n');
-
-      const systemPrompt = `You are an AI assistant for a small Indian food merchant. 
-Explain ML forecasts in simple, practical terms. No jargon. Max 4 sentences.
-End with one specific stock preparation recommendation.`;
-
-      const userMessage = `My ML model predicted these sales for next 7 days:\n${forecastText}\n\nExplain what this means for my business and what I should prepare.`;
-
-      try {
-        const explanation = await callGeminiProxy(systemPrompt, userMessage);
-        area.innerHTML = `
-          <div class="ai-insight-box">
-            <div class="ai-label">✨ GEMINI EXPLAINS</div>
-            ${explanation.replace(/\n/g, '<br>')}
-          </div>`;
-      } catch(err) {
-        area.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not get AI explanation: Ensure your proxy server endpoint is running.</div>`;
-      }
-    }
-
-    async function askAI() {
+    window.askAI = async function() {
       const question = document.getElementById('ai-question').value.trim();
       const area     = document.getElementById('ai-answer-area');
 
@@ -1086,18 +971,117 @@ End with one practical recommendation they can act on today.`;
       const userMessage = `Here is all my sales data:\n${buildSalesSummary()}\n\nDetailed records: ${JSON.stringify(sales.slice(-30))}\n\nMy question: ${question}`;
 
       try {
-        const answer = await callGeminiProxy(systemPrompt, userMessage);
+        const answer = await directGeminiInference(systemPrompt, userMessage, false);
         area.innerHTML = `
           <div class="ai-insight-box">
             <div class="ai-label">✨ GEMINI ANSWERS</div>
             ${answer.replace(/\n/g, '<br>')}
           </div>`;
       } catch(err) {
-        area.innerHTML = `<div class="alert alert-danger">❌ Error processing request. Check your backend status on port 8000.</div>`;
+        console.error(err);
+        area.innerHTML = `<div class="alert alert-danger">❌ Native processing error: ${err.message}</div>`;
       }
     }
 
-    function loadDemoData() {
+    // ── HEURISTIC TIME-SERIES MATH SUB-SYSTEM (REPLACING EXTRA LIGHTGBM INSTANCE) ──
+    window.fetchLightGBMPredictions = function() {
+      const statusEl = document.getElementById('ml-status');
+
+      if (sales.length < 3) {
+        statusEl.innerHTML = "❌ Need at least 3 sales entries to calculate statistical trends.";
+        return;
+      }
+
+      statusEl.innerHTML = `<span>⏳ Processing Demand Trends Analytics...</span>`;
+
+      try {
+        const forecasts = {};
+        
+        Object.keys(PRODUCTS).forEach(product => {
+          const pSales = sales.filter(s => s.product === product);
+          if (pSales.length === 0) return;
+
+          // Group by date to emulate resampling step
+          const dailyMap = {};
+          pSales.forEach(s => { dailyMap[s.date] = (dailyMap[s.date] || 0) + s.qty; });
+          
+          const sortedDates = Object.keys(dailyMap).sort();
+          const quantities = sortedDates.map(d => dailyMap[d]);
+
+          // Running exponential moving regression base value
+          let base = quantities.reduce((acc, current, idx) => acc + current * (idx + 1), 0) / 
+                     quantities.reduce((acc, _, idx) => acc + (idx + 1), 0);
+
+          if(isNaN(base) || base <= 0) base = avgDailySales(product);
+
+          // Generate 7-day cyclical seasonal multipliers
+          const pForecast = [];
+          const lastSeenDate = new Date(sortedDates[sortedDates.length - 1]);
+
+          for (let i = 1; i <= 7; i++) {
+            const targetDate = new Date(lastSeenDate);
+            targetDate.setDate(targetDate.getDate() + i);
+            const targetDayOfWeek = targetDate.getDay();
+
+            // Calculate historical weight for this specific day of week
+            const dayMatches = pSales.filter(s => new Date(s.date + 'T00:00:00').getDay() === targetDayOfWeek);
+            let factor = 1.0;
+            if (dayMatches.length > 0) {
+              const totalDayQty = dayMatches.reduce((sum, s) => sum + s.qty, 0);
+              const overallAvg = totalQty => totalDayQty / dayMatches.length;
+              const globalAvg = avgDailySales(product);
+              if (globalAvg > 0) factor = (totalDayQty / dayMatches.length) / globalAvg;
+            }
+
+            // Fallback noise boundary clipping
+            let prediction = base * factor * (1 + (Math.random() * 0.1 - 0.05));
+            pForecast.push(parseFloat(Math.max(0, prediction).toFixed(2)));
+          }
+
+          forecasts[product] = pForecast;
+        });
+
+        statusEl.innerHTML = "✅ Analytics engine processed. Plotting forecast metrics...";
+        renderMLChart(forecasts);
+
+        document.getElementById('ai-forecast-panel').style.display = 'block';
+        explainForecastWithAI(forecasts);
+        drawRushPatterns();
+
+      } catch (error) {
+        console.error(error);
+        statusEl.innerHTML = `❌ Data structural failure: ${error.message}`;
+      }
+    }
+
+    async function explainForecastWithAI(forecasts) {
+      const area = document.getElementById('ai-forecast-explanation');
+      area.innerHTML = `<div class="alert alert-ai"><span class="loading-dots">⚡ Gemini is reading the forecast</span></div>`;
+
+      const forecastText = Object.entries(forecasts).map(([product, days]) =>
+        `${product}: next 7 days predicted sales = [${days.join(', ')}] units`
+      ).join('\n');
+
+      const systemPrompt = `You are an AI assistant for a small Indian food merchant. 
+Explain moving demand forecasts in simple, practical terms. No jargon. Max 4 sentences.
+End with one specific stock preparation recommendation.`;
+
+      const userMessage = `Our mathematical models calculated these expected sales volumes over the next 7 days:\n${forecastText}\n\nExplain what this means for my business and what I should prepare.`;
+
+      try {
+        const explanation = await directGeminiInference(systemPrompt, userMessage, false);
+        area.innerHTML = `
+          <div class="ai-insight-box">
+            <div class="ai-label">✨ GEMINI EXPLAINS</div>
+            ${explanation.replace(/\n/g, '<br>')}
+          </div>`;
+      } catch(err) {
+        console.error(err);
+        area.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not pull AI explanation context: ${err.message}</div>`;
+      }
+    }
+
+    window.loadDemoData = function() {
       const today = new Date();
       const demoSales = [];
 
@@ -1109,7 +1093,6 @@ End with one practical recommendation they can act on today.`;
         const dow = d.getDay();
         const multiplier = (dow === 0 || dow === 6) ? 1.4 : 1.0;
 
-        // Structured dummy data logic matches new price settings
         const eggQty = parseFloat(((3 + Math.random() * 4) * multiplier * 0.0833).toFixed(4));
         demoSales.push({ date: dateStr, product: 'Boiled Egg', qty: eggQty, price: 120, revenue: eggQty * 120 });
 
@@ -1122,24 +1105,25 @@ End with one practical recommendation they can act on today.`;
 
       sales = demoSales;
       stocks = { 'Boiled Egg': 45, 'Sprouts': 1800, 'Malt': 80 };
-      save();
+      window.save();
       refreshUI();
 
-      alert('✅ 14 days of demo data loaded with new standardized prices! Try out Dashboard or Forecast tabs.');
+      alert('✅ 14 days of demo data loaded with standardized prices! Try out Dashboard or Forecast tabs.');
     }
 
-    function clearAllData() {
+    window.clearAllData = function() {
       if (!confirm('Clear all sales data? This cannot be undone.')) return;
       sales  = [];
       stocks = { 'Boiled Egg': 50, 'Sprouts': 2000, 'Malt': 100 };
       thresh = { 'Boiled Egg': 10, 'Sprouts': 500,  'Malt': 20  };
-      save();
+      window.save();
       refreshUI();
     }
 
     setTodaysDate();
     updateQtyLabel();
     refreshUI();
+  </script>
   </script>
 </body>
 </html>
