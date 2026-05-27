@@ -417,7 +417,8 @@
         <h2>🤖 LightGBM Forecast <span class="ai-tag">ML MODEL</span></h2>
         <p style="font-size:0.75rem;color:var(--muted); margin-bottom:1rem;">
           Sends data to Python backend → trains Gradient Boosting model → plots 7-day forecast.
-          <br><strong>Requires:</strong> <code>uvicorn main:app --reload</code> running on port 8000.
+          <br><strong>Requires:</strong> <code>uvicorn main:app --reload</code> running on port 8000 or
+          python -m uvicorn main:app --reload.
         </p>
         <button class="btn btn-primary" onclick="fetchLightGBMPredictions()">▶ Run ML Model</button>
         <div id="ml-status" style="font-size:0.8rem;font-weight:600;color:var(--mlt);margin-top:10px;text-align:center;"></div>
@@ -539,7 +540,7 @@
     import { GoogleGenAI } from "https://esm.run/@google/genai";
 
     // Add your API key here
-    const GEMINI_API_KEY = "";
+    const GEMINI_API_KEY = "AIzaSyAu_4JqtnzwRsLY_F0hhED3CIduyY9tcAg";
 
     // Initialize the Gemini client configuration
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -1052,6 +1053,76 @@ End with one practical recommendation they can act on today.`;
         console.error(error);
         statusEl.innerHTML = `❌ Data structural failure: ${error.message}`;
       }
+    }
+    
+    function renderMLChart(forecasts) {
+      const canvas = document.getElementById('mlChart');
+      if (mlChartInstance) mlChartInstance.destroy();
+
+      const allDates = [...new Set(sales.map(s => s.date))].sort();
+
+      const lastDate = new Date(allDates[allDates.length - 1]);
+      const futureLabels = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i + 1);
+        return d.toISOString().slice(5, 10);
+      });
+
+      const allLabels = [...allDates.map(d => d.slice(5)), ...futureLabels];
+      const datasets  = [];
+
+      Object.keys(PRODUCTS).forEach(product => {
+        const cfg = PRODUCTS[product];
+        const pSales = sales.filter(s => s.product === product);
+        if (pSales.length === 0) return;
+
+        const dailyMap = {};
+        pSales.forEach(s => { dailyMap[s.date] = (dailyMap[s.date] || 0) + s.qty; });
+        const actualYs = allDates.map(d => dailyMap[d] || 0);
+
+        datasets.push({
+          label: `${product} Actual`,
+          data: actualYs,
+          borderColor: cfg.color,
+          backgroundColor: cfg.color + '20',
+          tension: 0.3,
+          pointRadius: 3
+        });
+
+        if (forecasts[product]) {
+          const lastActual = actualYs[actualYs.length - 1];
+          const paddedForecast = [
+            ...Array(allDates.length - 1).fill(null),
+            lastActual,
+            ...forecasts[product]
+          ];
+          datasets.push({
+            label: `${product} Forecast`,
+            data: paddedForecast,
+            borderColor: cfg.color,
+            borderDash: [6, 4],
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 1.5
+          });
+        }
+      });
+
+      mlChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: { labels: allLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+          },
+          scales: {
+            x: { ticks: { maxRotation: 45, font: { size: 10 } } }
+          }
+        }
+      });
     }
 
     async function explainForecastWithAI(forecasts) {
