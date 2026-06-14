@@ -1,0 +1,281 @@
+import React, { useState } from "react";
+import { Settings, Sliders, Egg, Sprout, TrendingUp, AlertTriangle, Trash2, LogOut, RefreshCw } from "lucide-react";
+import { User } from "../types";
+
+interface StockSettingsTabProps {
+  user: User;
+  token: string;
+  onRefreshData: () => void;
+  onLogout: () => void;
+}
+
+export default function StockSettingsTab({ user, token, onRefreshData, onLogout }: StockSettingsTabProps) {
+  const [eggStock, setEggStock] = useState(user.stocks["Boiled Egg"]?.toString() || "0");
+  const [eggThresh, setEggThresh] = useState(user.thresholds["Boiled Egg"]?.toString() || "10");
+
+  const [sprStock, setSprStock] = useState(user.stocks["Sprouts"]?.toString() || "0");
+  const [sprThresh, setSprThresh] = useState(user.thresholds["Sprouts"]?.toString() || "500");
+
+  const [mltStock, setMaltStock] = useState(user.stocks["Malt"]?.toString() || "0");
+  const [mltThresh, setMaltThresh] = useState(user.thresholds["Malt"]?.toString() || "20");
+
+  const [loadingSave, setLoadingSave] = useState(false);
+  const [loadingClear, setLoadingClear] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSaveInventory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingSave(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch("/api/inventory/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          stocks: {
+            "Boiled Egg": parseFloat(eggStock) || 0,
+            "Sprouts": parseFloat(sprStock) || 0,
+            "Malt": parseFloat(mltStock) || 0
+          },
+          thresholds: {
+            "Boiled Egg": parseFloat(eggThresh) || 0,
+            "Sprouts": parseFloat(sprThresh) || 0,
+            "Malt": parseFloat(mltThresh) || 0
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update stock configurations.");
+      }
+
+      setMessage("✓ Stock settings saved securely on database server!");
+      onRefreshData();
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoadingSave(false);
+    }
+  };
+
+  const handleClearData = async () => {
+    if (!confirm("⚠️ WARNING: This completely purges your entire recorded sales log and resets food stocks. This cannot be undone. Proceed?")) {
+      return;
+    }
+
+    setLoadingClear(true);
+    try {
+      const response = await fetch("/api/inventory/clear", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to clear merchant logs.");
+      }
+
+      alert("✓ Database successfully wiped. Default inventory benchmarks restored.");
+      onRefreshData();
+      
+      // Update local state variables to match restored default metrics
+      setEggStock("50");
+      setEggThresh("10");
+      setSprStock("2000");
+      setSprThresh("500");
+      setMaltStock("100");
+      setMaltThresh("20");
+
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setLoadingClear(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 font-sans">
+      {/* Configuration Header */}
+      <div className="bg-brand-surface rounded-3xl border border-[#E6E1F5] shadow-sm p-6">
+        <h3 className="font-bold font-display text-neutral-950 text-base mb-2 flex items-center gap-2">
+          <Settings className="w-5 h-5 text-[#6F52E7]" /> Stock Setup Control Panel
+        </h3>
+        <p className="text-xs text-[#6B6687] mb-6 font-display">
+          Fine-tune active inventory levels, configure warning thresholds, and safely reset shop transactions.
+        </p>
+
+        {error && (
+          <div className="p-3 mb-4 bg-red-50/50 border border-red-200 text-red-650 text-xs rounded-xl font-medium">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="p-3 mb-4 bg-[#F1EDFE] border border-[#D3CDE8] text-[#6F52E7] text-xs rounded-xl font-semibold">
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSaveInventory} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Boiled Egg stock settings card */}
+            <div className="p-4 bg-amber-50/20 border border-amber-250/30 rounded-2xl relative">
+              <div className="flex items-center gap-2 mb-3">
+                <Egg className="w-5 h-5 text-amber-600" />
+                <span className="font-bold font-display text-xs text-[#16142E] uppercase tracking-wide">Boiled Eggs</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase">On Hand Stocks (doz)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={eggStock}
+                    onChange={(e) => setEggStock(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase flex items-center gap-1">
+                    <AlertTriangle className="w-3 text-amber-500" /> Warning Threshold (doz)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={eggThresh}
+                    onChange={(e) => setEggThresh(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sprouts stock settings card */}
+            <div className="p-4 bg-emerald-50/20 border border-emerald-250/30 rounded-2xl relative">
+              <div className="flex items-center gap-2 mb-3">
+                <Sprout className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold font-display text-xs text-[#16142E] uppercase tracking-wide font-display">Sprouts</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase">On Hand Stocks (grams)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={sprStock}
+                    onChange={(e) => setSprStock(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase flex items-center gap-1">
+                    <AlertTriangle className="w-3 text-emerald-500" /> Warning Threshold (grams)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={sprThresh}
+                    onChange={(e) => setSprThresh(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Flour / Malt stock settings card */}
+            <div className="p-4 bg-[#6F52E7]/5 border border-[#6F52E7]/15 rounded-2xl relative">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-5 h-5 text-[#6F52E7]" />
+                <span className="font-bold text-xs text-[#16142E] uppercase tracking-wide font-display">Malt</span>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase">On Hand Stocks (kg)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={mltStock}
+                    onChange={(e) => setMaltStock(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-[#6B6687] uppercase flex items-center gap-1">
+                    <AlertTriangle className="w-3 text-amber-500" /> Warning Threshold (kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={mltThresh}
+                    onChange={(e) => setMaltThresh(e.target.value)}
+                    className="w-full mt-1 px-4 py-2 bg-white border border-[#D3CDE8] rounded-full text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#6F52E7]"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t border-[#E6E1F5]">
+            <button
+              onClick={onLogout}
+              type="button"
+              className="px-5 py-2 border border-red-200 bg-white hover:bg-red-50 text-red-650 text-xs font-bold rounded-full shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer font-display font-display font-medium"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Exit Shop</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={loadingSave}
+              className="px-6 py-2.5 bg-[#16142E] hover:bg-[#6F52E7] hover:shadow-[0_4px_14px_rgba(111,82,231,0.35)] text-white text-xs font-bold font-display rounded-full shadow-xs transition-all duration-200 cursor-pointer flex items-center gap-1.5 border border-[#6F52E7]/25"
+            >
+              {loadingSave ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sliders className="w-4 h-4 text-[#ECC785]" />
+              )}
+              <span>Commit Setup Limits</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Danger Zone panel */}
+      <div className="bg-brand-surface rounded-3xl border border-red-200 shadow-sm p-6 bg-[#FFF2F2]">
+        <h3 className="font-bold font-display text-red-950 text-sm mb-1 flex items-center gap-1.5">
+          <Trash2 className="w-4 h-4 text-red-600" /> Shop Safety Protocols (Purge Block)
+        </h3>
+        <p className="text-xs text-red-800 mb-4 font-display opacity-85">
+          Deletes all logged sales entries, logs, and resets stock limits back to baseline parameters.
+        </p>
+        <button
+          onClick={handleClearData}
+          disabled={loadingClear}
+          className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full shadow-xs transition-all cursor-pointer flex items-center gap-1.5 font-display"
+        >
+          {loadingClear ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          <span>Erase Shop Records</span>
+        </button>
+      </div>
+    </div>
+  );
+}

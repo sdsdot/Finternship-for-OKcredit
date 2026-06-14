@@ -1,0 +1,178 @@
+import React from "react";
+
+interface StockXLogoProps {
+  className?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  onlyIcon?: boolean;
+}
+
+export default function StockXLogo({ className = "", size = "md", onlyIcon = false }: StockXLogoProps) {
+  // Dimensions based on size
+  const dimensions = {
+    xs: { width: onlyIcon ? 24 : 96, height: 24 },
+    sm: { width: onlyIcon ? 36 : 130, height: 36 },
+    md: { width: onlyIcon ? 48 : 170, height: 48 },
+    lg: { width: onlyIcon ? 64 : 220, height: 64 },
+    xl: { width: onlyIcon ? 96 : 330, height: 96 },
+  }[size];
+
+  // Colors
+  const logoGreen = "#54B948";
+  const logoBlue = "#008DDF";
+
+  return (
+    <svg
+      width={dimensions.width}
+      height={dimensions.height}
+      viewBox={onlyIcon ? "5 10 95 80" : "0 0 280 85"}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`inline-block select-none ${className}`}
+      id="stockx-logo-svg"
+    >
+      <defs>
+        {/* Mask for the sliced/cut X letter */}
+        <mask id="sliceMask">
+          {/* White retains pixels */}
+          <rect x="0" y="0" width="280" height="100" fill="#FFFFFF" />
+          {/* Black cuts out a gorgeous curved slice across the X */}
+          <path
+            d="M 195 56 Q 228 35, 260 22"
+            stroke="#000000"
+            strokeWidth="5"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </mask>
+
+        {/* Drop shadow for the front checkmarks to separate them from the 3D box */}
+        <filter id="checkmarkShadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#16142E" floodOpacity="0.25" />
+        </filter>
+      </defs>
+
+      {/* ========================================================= */}
+      {/* 1. ISOMETRIC 3D BOX (LEFT SIDE)                           */}
+      {/* ========================================================= */}
+      <g id="box-group" className="transition-transform duration-300 hover:scale-[1.03] origin-[45px_42px]">
+        {/* Dark Slate Base Shape of the box */}
+        <path
+          d="M 18 36 L 56 17 L 88 33 L 88 63 L 52 82 L 18 66 Z"
+          fill="#37424A"
+          stroke="#2A333A"
+          strokeWidth="1"
+          strokeLinejoin="round"
+        />
+
+        {/* Top Face of the box (Light slate/white) */}
+        <path d="M 18 38 L 56 19 L 86 33 L 52 50 Z" fill="#FFFFFF" />
+        
+        {/* Horizontal dividing grid line on top of the box */}
+        <path
+          d="M 37 28.5 L 71 41.5"
+          stroke="#37424A"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          opacity="0.85"
+        />
+
+        {/* Left Face Accent Lines (Drawer/folder slots) */}
+        {/* Slider slot 1 */}
+        <path d="M 26 44 L 40 51" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+        <path d="M 26 44 L 31 46.5" stroke="#CCCCCC" strokeWidth="4" strokeLinecap="round" />
+        
+        {/* Slider slot 2 */}
+        <path d="M 26 53.5 L 40 60.5" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+        <path d="M 26 53.5 L 31 56" stroke="#CCCCCC" strokeWidth="4" strokeLinecap="round" />
+
+        {/* Slider slot 3 */}
+        <path d="M 26 63 L 40 70" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+        <path d="M 26 63 L 31 65.5" stroke="#CCCCCC" strokeWidth="4" strokeLinecap="round" />
+
+        {/* Right Side Stacked document sheets (protruding white pages) */}
+        {/* Page 1 */}
+        <path d="M 54 50 L 86 34 L 86 38 L 54 54 Z" fill="#FFFFFF" opacity="0.95" />
+        {/* Page 2 */}
+        <path d="M 54 58 L 86 42 L 86 46 L 54 62 Z" fill="#FFFFFF" opacity="0.95" />
+        {/* Page 3 */}
+        <path d="M 54 66 L 86 50 L 86 54 L 54 70 Z" fill="#FFFFFF" opacity="0.95" />
+
+        {/* ========================================================= */}
+        {/* 2. OVERLAPPING SEAMLESS CHECKMARKS                        */}
+        {/* ========================================================= */}
+        <g filter="url(#checkmarkShadow)">
+          {/* Green Checkmark (Upper Left) */}
+          <path
+            d="M 46 59 L 57 71 L 81 47"
+            stroke="#FFFFFF"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+          <path
+            d="M 46 59 L 57 71 L 81 47"
+            stroke={logoGreen}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+
+          {/* Blue Checkmark (Lower Right) */}
+          <path
+            d="M 51 68 L 65 82 L 87 60"
+            stroke="#FFFFFF"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+          <path
+            d="M 51 68 L 65 82 L 87 60"
+            stroke={logoBlue}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </g>
+      </g>
+
+      {/* ========================================================= */}
+      {/* 3. LOGO TYPOGRAPHY TEXT (STOCKX)                          */}
+      {/* ========================================================= */}
+      {!onlyIcon && (
+        <g id="text-group">
+          {/* "Stock" Text - Slanted, sans-serif, adapts to parent color */}
+          <text
+            x="96"
+            y="55"
+            fill="currentColor"
+            fontSize="45"
+            fontWeight="800"
+            fontStyle="italic"
+            fontFamily="system-ui, -apple-system, sans-serif"
+            letterSpacing="-1.5px"
+          >
+            Stock
+          </text>
+
+          {/* Vectorized slant custom Green "X" with dynamic slice cut */}
+          <g mask="url(#sliceMask)">
+            {/* Leg 1: Backslash \ */}
+            <path
+              d="M 215 18 L 230 18 L 244 64 L 229 64 Z"
+              fill={logoGreen}
+            />
+            {/* Leg 2: Slash / */}
+            <path
+              d="M 207 64 L 222 64 L 253 18 L 238 18 Z"
+              fill={logoGreen}
+            />
+          </g>
+        </g>
+      )}
+    </svg>
+  );
+}

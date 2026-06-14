@@ -1,0 +1,218 @@
+import React, { useState } from "react";
+import { Store, Mail, Lock, User as UserIcon, Sparkles } from "lucide-react";
+import { User } from "../types";
+import StockXLogo from "./StockXLogo";
+
+interface LoginScreenProps {
+  onAuthSuccess: (token: string, user: User) => void;
+}
+
+export default function LoginScreen({ onAuthSuccess }: LoginScreenProps) {
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || (isRegister && !name)) {
+      setError("Please complete all required fields.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    const endpoint = isRegister ? "/api/auth/register" : "/api/auth/login";
+    const body = isRegister ? { email, password, name } : { email, password };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Authentication failed. Please verify credentials.");
+      }
+
+      onAuthSuccess(data.token, data.user);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to initialize demo session.");
+      }
+
+      onAuthSuccess(data.token, data.user);
+    } catch (err: any) {
+      setError(err.message || "Failed to launch demo account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-brand-cream font-sans">
+      <div className="absolute top-8 left-8 flex items-center">
+        <StockXLogo size="sm" className="text-[#16142E]" />
+      </div>
+
+      <div className="w-full max-w-md bg-brand-surface rounded-3xl border border-neutral-100 shadow-2xl overflow-hidden p-8 relative">
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#6F52E7] via-[#8E78E6] to-[#C9BEF2]"></div>
+
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#6F52E7]/10 border border-[#6F52E7]/20 text-[#6F52E7] mb-3 p-1">
+            <StockXLogo onlyIcon={true} size="md" />
+          </div>
+          <h2 className="font-serif italic text-3xl text-[#16142E] tracking-tight">
+            {isRegister ? "Setup Your Shop" : "Welcome Back"}
+          </h2>
+          <p className="text-xs text-[#6B6687] mt-1.5">
+            {isRegister
+              ? "Register to track eggs, sprouts, and flour stocks."
+              : "Sign in to manage your inventory and get Gemini suggestions."}
+          </p>
+        </div>
+
+        {error && (
+          <div className="p-3 mb-5 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg font-medium">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isRegister && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">
+                Shop Name / Your Name
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-400">
+                  <UserIcon className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  placeholder="e.g. Shyam's Street Stall"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D3CDE8] rounded-full text-sm focus:outline-none focus:border-[#6F52E7] text-[#16142E] transition-colors"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B6687] mb-1 pl-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-neutral-400">
+                <Mail className="w-4 h-4" />
+              </span>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D3CDE8] rounded-full text-sm focus:outline-none focus:border-[#6F52E7] text-[#16142E] transition-colors"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B6687] mb-1 pl-1">
+              Password
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-neutral-400">
+                <Lock className="w-4 h-4" />
+              </span>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#D3CDE8] rounded-full text-sm focus:outline-none focus:border-[#6F52E7] text-[#16142E] transition-colors"
+                required
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-6 py-3 bg-[#16142E] hover:bg-[#6F52E7] text-white font-semibold text-sm rounded-full transition-all duration-250 hover:shadow-[0_4px_16px_rgba(111,82,231,0.35)] hover:-translate-y-0.5 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-[#6F52E7]/25"
+          >
+            {loading ? (
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              <>
+                <span>{isRegister ? "Launch Dashboard" : "Sign In"}</span>
+                <Sparkles className="w-4 h-4 text-[#ECC785]" />
+              </>
+            )}
+          </button>
+
+          {!isRegister && (
+            <>
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-[#E6E1F5]"></div>
+                <span className="flex-shrink mx-4 text-[10px] text-neutral-400 font-mono uppercase tracking-widest">or</span>
+                <div className="flex-grow border-t border-[#E6E1F5]"></div>
+              </div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleDemoLogin}
+                className="w-full py-2.5 bg-white border border-[#D3CDE8] hover:border-[#6F52E7] text-[#16142E] hover:text-[#6F52E7] font-semibold text-xs rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Sparkles className="w-4 h-4 text-[#ECC785] fill-[#ECC785]/20 animate-pulse" />
+                <span>Explore as Demo Merchant</span>
+              </button>
+            </>
+          )}
+        </form>
+
+        <div className="mt-6 pt-6 border-t border-[#E6E1F5] text-center text-xs">
+          <span className="text-[#6B6687]">
+            {isRegister ? "Already registered?" : "New to StockX?"}{" "}
+          </span>
+          <button
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError("");
+            }}
+            className="text-[#6F52E7] hover:text-[#7E63FF] font-semibold underline focus:outline-none cursor-pointer"
+          >
+            {isRegister ? "Login to account" : "Create merchant account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
